@@ -25,7 +25,7 @@ FROM MASTER_DATA;
 
 2. To the extent of my knowledge in SQL, replacing ```??```, ```*```, etc. requires a few subqueries. Since I'm more productive with python, I decided to use that instead. 
 
-Firstly, the data in the ```NEW_MASTER_DATA``` table table is exported in a CSV format using the following steps;
+Firstly, the data in the ```NEW_MASTER_DATA``` table is exported in a CSV format using the following steps;
 - Remove the limit on the number of rows that can be displayed in the workbench
 <img src="show limit.png" />
 
