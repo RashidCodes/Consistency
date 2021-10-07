@@ -8,7 +8,7 @@ Charles Chaaya suggested that we replace all dashes ```-``` with spaces ```" "``
 
 I have quite a substantial amount of experience with data manipulation in python, so I decided that instead of using SQL, I'll use python instead. The solution to the problem aforementioned is outlined in the steps below;
 
-1. Create a new table called NEW_MASTER_TABLE using the SQL code below. A new table is created because I did not want to make changes the **MASTER_DATA** table. The code replaces all dashes (```-```) with spaces (```" "```) in the **ORIG_NAME_NO** column as suggested by Charles Chaaya. The **ORIG_NAME_NO** column is renamed to **CONSISTENT_ORIG_NAME_NO**.
+1. Create a new table called NEW_MASTER_TABLE using the SQL code below. The code replaces all dashes (```-```) with spaces (```" "```) in the **ORIG_NAME_NO** column as suggested by Charles Chaaya. The **ORIG_NAME_NO** column is renamed to **CONSISTENT_ORIG_NAME_NO**.
 
 ```sql
 USE `DP_GWDBQLD_Master`;
@@ -25,7 +25,7 @@ FROM MASTER_DATA;
 
 2. To the extent of my knowledge in SQL, replacing ```??```, ```*```, etc. requires a few subqueries. Since I'm more productive with python, I decided to use that instead. 
 
-Firstly, the data in the **NEW_MASTER_DATA** table is exported in a CSV format using the following steps;
+Firstly, the data in the ```NEW_MASTER_DATA``` table table is exported in a CSV format using the following steps;
 - Remove the limit on the number of rows that can be displayed in the workbench
 <img src="show limit.png" />
 
@@ -33,7 +33,7 @@ Firstly, the data in the **NEW_MASTER_DATA** table is exported in a CSV format u
 
 <br/>
 
-- Run the following SQL code. It simply selects all the data in the **New Master Data** table.
+- Run the following SQL code. It simply selects all the data in the ```NEW_MASTER_DATA``` table.
 
 ```sql
 -- This database should now contain the New Master data table
@@ -43,13 +43,17 @@ USE `DP_GWDBQLD_Master`;
 SELECT * FROM NEW_MASTER_DATA;
 ```
 
+<br/>
+
 - Export the selection in a CSV format.
 <img src="Export.png" />
 
-Make sure to name the CSV file as **Consistent Names.csv**.
+Make sure to name the CSV file as ```Consistent Names.csv```.
 
+<br/>
 
-- The **New Master Data** table is now in CSV format. Use the following python script to remove all unnecessary characters.
+- The ```NEW_MASTER_DATA``` table is now in CSV format. Use the following python script to remove all unnecessary characters.
+
 ```python
 import pandas as pd 
 pd.set_option('display.max_columns', None)
@@ -81,7 +85,7 @@ consistent_names.to_csv("Consistent Names.csv", index=False)
 
 <img src="table wizard.png" />
 
-The import wizard does not work with excel files, so the Arrow energy excel file will have to be converted into CSV format. In this case, the name of the newly created CSV file is **WELLSArrow.csv**.
+The import wizard does not work with excel files, so the Arrow energy excel file will have to be converted into CSV format. In this case, the name of the newly created CSV file is ```WELLSArrow.csv```.
 
 <br/>
 
@@ -111,7 +115,7 @@ arrow_wells.to_csv("WELLSArrow.csv", index=False)
 
 # Summary
 
-1. Create a new table called **NEW_MASTER_DATA_** on mysql workbench.
+1. Create a new table called **NEW_MASTER_DATA** on mysql workbench.
 2. Export the content of this table in CSV format.
 3. Remove all unnecessary characters using python (Creates clean version of **NEW_MASTER_DATA**).
 4. Replace the existing **NEW_MASTER_DATA** table with the clean version. This involves dropping the existing **NEW_MASTER_DATA** table and uploading the clean version to the server.
