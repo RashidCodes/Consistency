@@ -2,12 +2,13 @@
 
 Charles Chaaya suggested that we replace all dashes ```-``` with spaces ```" "```. Steve also suggested that I replace all underscores ```_``` with spaces, and lastly, upon visual inspection, I replaced ```???``` with spaces and removed unnecessary asterisks ```*```.
 
+<br/>
 
-# ENFORCING DATA CONSISTENCY IN THE QUEENSLAND GW DATABASE (MASTER_DATA table)
+# Enforcing data consistency in the queensland GW database (MASTER_DATA table)
 
 I have quite a substantial amount of experience with data manipulation in python, so I decided that instead of using SQL, I'll use python instead. The solution to the problem aforementioned is outlined in the steps below;
 
-1. Create a new table called NEW_MASTER_TABLE using the SQL code below. A new table is created because I did not want to make changes the **MASTER_DATA** table. The code replaces all dashes (```-```) with spaces (```" "```) in the **ORIG_NAME_NO** as requested by Charles Chaaya. The **ORIG_NAME_NO** column is renamed to **CONSISTENT_ORIG_NAME_NO**.
+1. Create a new table called NEW_MASTER_TABLE using the SQL code below. A new table is created because I did not want to make changes the **MASTER_DATA** table. The code replaces all dashes (```-```) with spaces (```" "```) in the **ORIG_NAME_NO** column as suggested by Charles Chaaya. The **ORIG_NAME_NO** column is renamed to **CONSISTENT_ORIG_NAME_NO**.
 
 ```sql
 USE `DP_GWDBQLD_Master`;
@@ -17,8 +18,10 @@ ALTER TABLE MASTER_DATA MODIFY COLUMN DRILLED_DATE VARCHAR(30), MODIFY COLUMN LO
 
 CREATE TABLE NEW_MASTER_DATA 
 SELECT RN, FACILITY_TYPE, OFFICE, SHIRE_CODE, PARISH, RN_REPLACES, DO_FILE, RO_FILE, HO_FILE, FACILITY_STATUS, DRILLED_DATE, DRILLER_NAME, BASIN, METHOD_CONST, SUB_AREA, LOT, PLAN, DESCRIPTION, COUNTY, LAT, LNG, EASTING, NORTHING, ZONE, ACCURACY, GPS_ACCURACY, GIS_LAT, GIS_LNG, CHECKED, MAP_SCALE, MAP_SERIES, MAP_NO, PROG_SECT, EQUIPMENT, REPLACE(ORIG_NAME_NO, "-", " ") as CONSISTENT_ORIG_NAME_NO, POLYGON, CONFIDENTIAL, DATA_OWNER, BORE_LINE_CODE, DRILLER_LICENCE_NUMBER, LOG_RECEIVED_DATE, OBJECTID
-FROM DP_GWDBQLD_Master.MASTER_DATA;
+FROM MASTER_DATA;
 ``` 
+
+<br/>
 
 2. To the extent of my knowledge in SQL, replacing ```??```, ```*```, etc. requires a few subqueries. Since I'm more productive with python, I decided to use that instead. 
 
@@ -37,7 +40,7 @@ Firstly, the data in the **NEW_MASTER_DATA** table is exported in a CSV format u
 USE `DP_GWDBQLD_Master`;
 
 -- Select everything from the New Master data table
-SELECT * FROM DP_GWDBQLD_Master.NEW_MASTER_DATA;
+SELECT * FROM NEW_MASTER_DATA;
 ```
 
 - Export the selection in a CSV format.
@@ -70,14 +73,15 @@ consistent_names["CONSISTENT_ORIG_NAME_NO"] = consistent_names["CONSISTENT_ORIG_
 consistent_names.to_csv("Consistent Names.csv", index=False)
 ```
 
+<br/><br/>
 
-# ENFORCING DATA CONSISTENCY IN THE ARROW ENERGY WELLS DATA
+# Enforcing data consistency in the Arrow Energy wells data
 
 1. The Arrow Energy wells data has to be imported into the ```DP_GWDBQLD_Master``` database. This is done using the **Table Data Import Wizard** as shown in the screen capture below.
 
 <img src="table wizard.png" />
 
-The import wizard does not work with excel files, so the Arrow energy excel file will have to be converted into CSV format. In this case, the name of the CSV file is **WELLSArrow.csv**.
+The import wizard does not work with excel files, so the Arrow energy excel file will have to be converted into CSV format. In this case, the name of the newly created CSV file is **WELLSArrow.csv**.
 
 <br/>
 
@@ -102,3 +106,14 @@ arrow_wells["Well Name"] = arrow_wells["Well Name"].str.replace("-", " ", regex=
 # Save the cleaned file
 arrow_wells.to_csv("WELLSArrow.csv", index=False)
 ```
+
+<br/><br/>
+
+# Summary
+
+1. Create a new table called **NEW_MASTER_DATA_** on mysql workbench.
+2. Export the content of this table in CSV format.
+3. Remove all unnecessary characters using python (Creates clean version of **NEW_MASTER_DATA**).
+4. Replace the existing **NEW_MASTER_DATA** table with the clean version. This involves dropping the existing **NEW_MASTER_DATA** table and uploading the clean version to the server.
+5. Remove all unnecessary characters in the Arrow energy wells data.
+6. Upload it to Mysql server using the **Table Data Import Wizard**.
