@@ -58,23 +58,36 @@ Make sure to name the CSV file as ```Consistent Names.csv```.
 import pandas as pd 
 pd.set_option('display.max_columns', None)
 
-# Read in 
+def preprocess_text(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    """Preprocesses Well names
+    
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Arrow energy or Queensland data
+
+    column_name: 
+        The column that contains facility names
+
+
+    Returns
+    -------
+    df: pd.DataFrame
+        The modified dataframe
+    """
+
+    df[column_name] = df[column_name].str.replace('\?|\*|"', "", regex=True)
+    df[column_name] = df[column_name].str.replace('_|-', " ", regex=True)
+    df[column_name] = df[column_name].str.rstrip()
+    df[column_name] = df[column_name].str.lstrip()
+
+    return df 
+
+
 consistent_names = pd.read_csv("Consistent Names.csv")
-
-# Remove ******
-consistent_names["CONSISTENT_ORIG_NAME_NO"] = consistent_names["CONSISTENT_ORIG_NAME_NO"].str.replace("REPEALED ***********", "REPEALED", regex=False)
-
-# Remove ??
-consistent_names["CONSISTENT_ORIG_NAME_NO"] = consistent_names["CONSISTENT_ORIG_NAME_NO"].str.replace("??", "", regex=False)
-
-# Replace underscores with spaces
-consistent_names["CONSISTENT_ORIG_NAME_NO"] = consistent_names["CONSISTENT_ORIG_NAME_NO"].str.replace("_", " ", regex=False)
-
-# Replace dashes with spaces
-consistent_names["CONSISTENT_ORIG_NAME_NO"] = consistent_names["CONSISTENT_ORIG_NAME_NO"].str.replace("-", " ", regex=False)
-
-# Save the cleaned file
-consistent_names.to_csv("Consistent Names.csv", index=False)
+consistent_data = preprocess_text(consistent_names, "CONSISTENT_ORIG_NAME_NO")
+consistent_data.to_csv("Consistent Names.csv", index=False)
 ```
 
 <br/><br/>
@@ -92,23 +105,9 @@ The import wizard does not work with excel files, so the Arrow energy excel file
 2. Remove all unecessary characters using the python script below.
 
 ```python
-import pandas as pd
 arrow_wells = pd.read_csv("WELLSArrow.csv")
-
-# Remove ******
-arrow_wells["Well Name"] = arrow_wells["Well Name"].str.replace("REPEALED ***********", "REPEALED", regex=False)
-
-# Remove ??
-arrow_wells["Well Name"] = arrow_wells["Well Name"].str.replace("??", "", regex=False)
-
-# Replace underscores with spaces
-arrow_wells["Well Name"] = arrow_wells["Well Name"].str.replace("_", " ", regex=False)
-
-# Replace dashes with spaces
-arrow_wells["Well Name"] = arrow_wells["Well Name"].str.replace("-", " ", regex=False)
-
-# Save the cleaned file
-arrow_wells.to_csv("WELLSArrow.csv", index=False)
+consistent_arrow_data = preprocess_text(arrow_wells, "Well Name")
+consistent_arrow_data.to_csv("WELLSArrow.csv", index=False)
 ```
 
 <br/><br/>
