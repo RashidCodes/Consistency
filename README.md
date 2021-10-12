@@ -57,10 +57,10 @@ The code below can be used to complete the steps aforementioned.
 ```sql
 -- Temporary table for the New master data
 CREATE TEMPORARY TABLE realRN 
-SELECT count(DISTINCT
+SELECT DISTINCT
     ORIG_NAME_NO, 
     CLEAN_ORIG_NAME_NO,
-    RN)
+    RN
 FROM NEW_MASTER_DATA;
 ```
 <br/>
