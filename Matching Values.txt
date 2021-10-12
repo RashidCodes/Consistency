@@ -1,0 +1,80 @@
+- You can leave the ORIG_NAME_NO COLUMN! You don't have to modify it
+USE `DP_GWDBQLD_Master`;
+
+-- Create a new temporary table for Facility names (Note that we're using the NEW_MASTER_DATA table And we're removing all empty rows)Ma
+SET @queensland_number=0;
+CREATE TEMPORARY TABLE realRN SELECT (@queensland_number:=@queensland_number + 1) AS QUEENSLAND_ROW_NUMBER,  RN, CONSISTENT_ORIG_NAME_NO FROM NEW_MASTER_DATA;
+
+-- Create a new temporary table for Arrow energy Well data
+SET @arrow_number=0;
+CREATE TEMPORARY TABLE realArrow SELECT (@arrow_number:=@arrow_number + 1) AS ARROW_ROW_NUMBER, `Well Name` FROM wellsarrow;
+
+-- Create new temporary table to store results
+CREATE TEMPORARY TABLE storeResults(
+    WellName VARCHAR(50),
+	QueenslandID INT,
+    ArrowID INT
+);
+
+-- DROP ALL TABLES
+DROP TABLE realRN;
+DROP TABLE realArrow;
+DROP TABLE storeResults;
+
+
+-- Create the procedure that does the matching
+DELIMITER $$
+DROP PROCEDURE IF EXISTS matchProc $$
+CREATE PROCEDURE matchProc()
+BEGIN
+	DECLARE my_well_name, my_orig_name VARCHAR(50);
+    DECLARE queensland_row_num, registration_rn, well_num, was_found INT;
+    DECLARE done INT;
+	DECLARE totalRecords INT DEFAULT 5;
+    DECLARE record_number INT DEFAULT 0;
+    DECLARE new_cur CURSOR FOR SELECT * FROM realRN;
+    
+    SELECT COUNT(*) INTO totalRecords FROM realRN;
+    -- DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+    
+    -- OPEN new_cur;
+    OPEN new_cur;
+    read_loop: LOOP
+		IF record_number = totalRecords THEN
+			LEAVE read_loop;
+		END IF;
+        
+        FETCH new_cur INTO queensland_row_num, registration_rn, my_orig_name;
+		SELECT Result INTO was_found FROM (SELECT my_orig_name IN (SELECT `Well Name` FROM realArrow) as Result) as new_table;
+	
+        
+        IF was_found = 1 THEN
+			SELECT ARROW_ROW_NUMBER INTO well_num FROM realArrow WHERE `Well name` = my_orig_name LIMIT 1;
+			INSERT INTO storeResults(WellName, QueenslandID, ArrowID) VALUES (my_orig_name, registration_rn, well_num);
+            
+		END IF;
+        
+        IF was_found = 0 THEN
+			SELECT ARROW_ROW_NUMBER INTO well_num FROM realArrow WHERE `Well name` = my_orig_name LIMIT 1;
+			INSERT INTO storeResults(WellName, QueenslandID, ArrowID) VALUES (my_orig_name, registration_rn, -1);
+		END IF;
+        
+        SET record_number = record_number + 1;
+        
+        
+	END LOOP read_loop;
+    SELECT record_number;
+    
+	-- close the cursor
+    CLOSE new_cur;
+        
+END;
+$$
+
+CALL matchProc();
+
+
+-- Checking the statistics
+SELECT COUNT(ArrowID) `Unmatched IDs` FROM storeResults where ArrowID = -1;
+SELECT COUNT(ArrowID) `Matched IDs` FROM storeResults where ArrowID != -1;
