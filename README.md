@@ -30,24 +30,27 @@ WHERE RN != "" AND ORIG_NAME_NO != "";
 <br/>
 
 ## The Arrow Energy table
-Simply use the ***Table Import Wizard*** to import the arrow energy data into the database.
+Simply use the ***Table Import Wizard*** to import the arrow energy data into the database. You may have to convert the original file to CSV format.
 
 <br/>
 
 # Mapping between Queensland and New master data
-This part is very tricky. There are several ways one could about solving this problem. But here's my idea.
+This part is very tricky. There are several ways one could go about solving this problem. But here's my idea.
 
 1. Create a new column in the ```NEW_MASTER_DATA``` table called ```CLEAN_ORIG_NAME_NO```. This column is a copy of the ```ORIG_NAME_NO``` column however all special characters have been removed. All entries are also made to be lowercase.
 
-2. Repeat Step 1 on the Arrow energy data (```wellsarrow```). This time, the new column will be called ```Clean Well Name```. 
+2. Repeat Step 1 on the Arrow energy data (```wellsarrow```). This time, the new column will be called ```Clean Well Name```. The ```Clean Well Name``` is a copy of the existing ```Well Name``` column in the Arrow energy data.
 
 3. For each ```CLEAN_ORIG_NAME_NO``` value in the ```NEW_MASTER_DATA``` table, find an exact match in the ```Clean Well Name``` column of the ```wellsarrow``` table.
 
-4. If a match is found, save the details of the facility in a new table called ```storeResults```. The new table will have 0 duplicates of facility names.
+4. If a match is found, save the details of the facility in a new table called ```storeResults```. The new table must have 0 duplicates of facility names.
+
+<br/>
 
 The code below can be used to complete the steps aforementioned. 
 
-```THE RESULT OF ALL DATA MANIPULATION TASKS WERE STORED IN TEMPORARY TABLES```.
+## ```THE RESULT OF ALL DATA MANIPULATION TASKS WERE STORED IN TEMPORARY TABLES```.
+
 <br/>
 
 ### Step 1:
@@ -86,6 +89,8 @@ CREATE TEMPORARY TABLE storeResults(
 );
 
 ```
+
+<br/>
 
 ## The mapping stored procedure
 ```sql
@@ -150,6 +155,7 @@ $$
 
 CALL matchProc();
 ```
+<br/>
 
 # Statistics
 
@@ -165,7 +171,7 @@ SELECT COUNT(ArrowID) `Matched IDs` FROM storeResults where ArrowID != -1; -- 19
 
 
 ```sql
--- Empty values
+-- Empty tuples in the old master table
 SELECT COUNT(*) Empty_Values FROM MASTER_DATA WHERE ORIG_NAME_NO = ""; -- 108102
 ```
 
