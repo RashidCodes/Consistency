@@ -1,122 +1,193 @@
-# How to enforce consistency in Facility Names in the Arrow Energy and Queensland GW Database
+# CSC8600 Data Governance Project
 
-Charles Chaaya suggested that we replace all dashes ```-``` with spaces ```" "```. Steve also suggested that I replace all underscores ```_``` with spaces, and lastly, upon visual inspection, I replaced ```???``` with spaces and removed unnecessary asterisks ```*```.
+- The project involves the creation of Master data, Meta data and ensuring high data quality for reporting purposes.
+
 
 <br/>
 
-# Enforcing data consistency in the queensland GW database (MASTER_DATA table)
+## Creation of a new Master Data
+The Master data table is basically a better version of the queensland data. The idea is to:
 
-I have quite a substantial amount of experience with data manipulation in python, so I decided that instead of using SQL, I'll use python instead. The solution to the problem aforementioned is outlined in the steps below;
+- Remove all duplicate tuples
+- Remove all tuples with empty values in the ```ORIG_NAME_NO``` and ```RN``` columns.
+- Remove all special characters
 
-1. Create a new table called NEW_MASTER_TABLE using the SQL code below. The code replaces all dashes (```-```) with spaces (```" "```) in the **ORIG_NAME_NO** column as suggested by Charles Chaaya. The **ORIG_NAME_NO** column is renamed to **CONSISTENT_ORIG_NAME_NO**.
+To create the Master data, you need access to the old Master table. Run the code below to create the new Master data table.
 
 ```sql
+/* This statement creates a new table called NEW_MASTER_DATA. It removes all special characters in the ORIG_NAME_NO column. Lastly, it removes all duplicated tuples in the Queensland dataset.
+*/
 USE `DP_GWDBQLD_Master`;
 
--- MODIFYING THE DRILLED_DATE AND LOG_RECEVIED_DATE COLUMN; Because it contains some invalid datetime values
-ALTER TABLE MASTER_DATA MODIFY COLUMN DRILLED_DATE VARCHAR(30), MODIFY COLUMN LOG_RECEIVED_DATE VARCHAR(30);
-
-CREATE TABLE NEW_MASTER_DATA 
-SELECT RN, FACILITY_TYPE, OFFICE, SHIRE_CODE, PARISH, RN_REPLACES, DO_FILE, RO_FILE, HO_FILE, FACILITY_STATUS, DRILLED_DATE, DRILLER_NAME, BASIN, METHOD_CONST, SUB_AREA, LOT, PLAN, DESCRIPTION, COUNTY, LAT, LNG, EASTING, NORTHING, ZONE, ACCURACY, GPS_ACCURACY, GIS_LAT, GIS_LNG, CHECKED, MAP_SCALE, MAP_SERIES, MAP_NO, PROG_SECT, EQUIPMENT, REPLACE(ORIG_NAME_NO, "-", " ") as CONSISTENT_ORIG_NAME_NO, POLYGON, CONFIDENTIAL, DATA_OWNER, BORE_LINE_CODE, DRILLER_LICENCE_NUMBER, LOG_RECEIVED_DATE, OBJECTID
-FROM MASTER_DATA;
-``` 
-
-<br/>
-
-2. To the extent of my knowledge in SQL, replacing ```??```, ```*```, etc. requires a few subqueries. Since I'm more productive with python, I decided to use that instead. 
-
-Firstly, the data in the ```NEW_MASTER_DATA``` table is exported in a CSV format using the following steps;
-- Remove the limit on the number of rows that can be displayed in the workbench
-<img src="show limit.png" />
-
-<img src="Remove limit.png">
-
-<br/>
-
-- Run the following SQL code. It simply selects all the data in the ```NEW_MASTER_DATA``` table.
-
-```sql
--- This database should now contain the New Master data table
-USE `DP_GWDBQLD_Master`;
-
--- Select everything from the New Master data table
-SELECT * FROM NEW_MASTER_DATA;
+CREATE TABLE NEW_MASTER_DATA
+SELECT DISTINCT ORIG_NAME_NO, LOWER(REGEXP_REPLACE(ORIG_NAME_NO, '[^\\\\x20-\\\\x7E]|<|>|=|:|;|@|\;|\\?|\\[', '')) CLEAN_ORIG_NAME_NO, RN, FACILITY_TYPE, OFFICE, SHIRE_CODE, PARISH, RN_REPLACES, DO_FILE, RO_FILE, HO_FILE, FACILITY_STATUS, DRILLED_DATE, DRILLER_NAME, BASIN, METHOD_CONST, SUB_AREA, LOT, PLAN,
+DESCRIPTION, COUNTY, LAT, LNG, EASTING, NORTHING, ZONE, ACCURACY, GPS_ACCURACY, GIS_LAT, GIS_LNG, CHECKED, MAP_SCALE, MAP_SERIES, MAP_NO, PROG_SECT, EQUIPMENT, POLYGON, CONFIDENTIAL,
+DATA_OWNER, BORE_LINE_CODE, DRILLER_LICENCE_NUMBER, LOG_RECEIVED_DATE, OBJECTID
+FROM MASTER_DATA
+WHERE RN != "" AND ORIG_NAME_NO != "";
 ```
 
 <br/>
 
-- Export the selection in a CSV format.
-<img src="Export.png" />
-
-Make sure to name the CSV file as ```Consistent Names.csv```.
+## The Arrow Energy table
+Simply use the ***Table Import Wizard*** to import the arrow energy data into the database. You may have to convert the original file to CSV format.
 
 <br/>
 
-- The ```NEW_MASTER_DATA``` table is now in CSV format. Use the following python script to remove all unnecessary characters.
+# Mapping between Queensland and New master data
+This part is very tricky. There are several ways one could go about solving this problem. But here's my idea.
 
-```python
-import pandas as pd 
-pd.set_option('display.max_columns', None)
+1. Create a new column in the ```NEW_MASTER_DATA``` table called ```CLEAN_ORIG_NAME_NO```. This column is a copy of the ```ORIG_NAME_NO``` column however all special characters have been removed. All entries are also made to be lowercase.
 
-def preprocess_text(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
-    """Preprocesses Well names
+2. Repeat Step 1 on the Arrow energy data (```wellsarrow```). This time, the new column will be called ```Clean Well Name```. The ```Clean Well Name``` is a copy of the existing ```Well Name``` column in the Arrow energy data.
+
+3. For each ```CLEAN_ORIG_NAME_NO``` value in the ```NEW_MASTER_DATA``` table, find an exact match in the ```Clean Well Name``` column of the ```wellsarrow``` table.
+
+4. If a match is found, save the details of the facility in a new table called ```storeResults```. The new table must have 0 duplicates of facility names.
+
+<br/>
+
+The code below can be used to complete the steps aforementioned. 
+
+## ```THE RESULT OF ALL DATA MANIPULATION TASKS WERE STORED IN TEMPORARY TABLES```.
+
+<br/>
+
+### Step 1:
+```sql
+-- Temporary table for the New master data
+CREATE TEMPORARY TABLE realRN 
+SELECT DISTINCT
+    ORIG_NAME_NO, 
+    CLEAN_ORIG_NAME_NO,
+    RN
+FROM NEW_MASTER_DATA;
+```
+<br/>
+
+### Step 2:
+```sql
+-- Create a new temporary table for Arrow energy Well data
+SET @arrow_number=0; -- dummy primary key
+CREATE TEMPORARY TABLE realArrow 
+SELECT 
+	(@arrow_number:=@arrow_number + 1) AS ARROW_ROW_NUMBER, 
+    `Well Name`,
+	LOWER(REGEXP_REPLACE(`Well Name`, '[^\\\\x20-\\\\x7E]|<|>|=|:|;|@|\;|\\?|\\[', '')) as `Clean Well Name`
+FROM wellsarrow;
+```
+
+<br/>
+
+### Step 3:
+```sql
+-- Create new temporary table to store results
+CREATE TEMPORARY TABLE storeResults(
+    WellName VARCHAR(50),
+	QueenslandID INT,
+    ArrowID INT
+);
+
+```
+
+<br/>
+
+## The mapping stored procedure
+```sql
+DELIMITER $$
+DROP PROCEDURE IF EXISTS matchProc $$
+CREATE PROCEDURE matchProc()
+BEGIN
+	DECLARE orig_name, clean_orig_name  VARCHAR(50);
+    DECLARE queensland_row_num, registration_rn, well_num, was_found, already_added INT;
+    DECLARE done INT;
+	DECLARE totalRecords INT DEFAULT 5;
+    DECLARE record_number INT DEFAULT 0;
+    DECLARE new_cur CURSOR FOR SELECT * FROM realRN;
     
+    SELECT COUNT(*) INTO totalRecords FROM realRN;
 
-    Parameters
-    ----------
-    df: pd.DataFrame
-        Arrow energy or Queensland data
+    
+    -- OPEN new_cur;
+    OPEN new_cur;
+    read_loop: LOOP
+		IF record_number = totalRecords THEN
+			LEAVE read_loop;
+		END IF;
+        
+        FETCH new_cur INTO orig_name, clean_orig_name, registration_rn;
+		SELECT Result INTO was_found FROM (SELECT clean_orig_name IN (SELECT `Clean Well Name` FROM realArrow) as Result) as new_table;
+	
+        
+        IF was_found = 1 THEN
+			-- Find out we've already recorded the name of the facility
+            SELECT already_available INTO already_added FROM (SELECT orig_name IN (SELECT WellName FROM storeResults) as already_available) as t1;
+            
+            -- Add the facility only if it does not exists
+            IF already_added = 0 THEN
+				SELECT ARROW_ROW_NUMBER INTO well_num FROM realArrow WHERE `Clean Well Name` = clean_orig_name LIMIT 1;
+				INSERT INTO storeResults(WellName, QueenslandID, ArrowID) VALUES (orig_name, registration_rn, well_num);
+			END IF;
+            
+		END IF;
+        
+        IF was_found = 0 THEN
+			-- Check if the facility has already been recorded
+			SELECT already_available INTO already_added FROM (SELECT orig_name IN (SELECT WellName FROM storeResults) as already_available) as t2;
+            
+            -- Add the facility only if it does not exist
+            IF already_added = 0 THEN 
+				INSERT INTO storeResults(WellName, QueenslandID, ArrowID) VALUES (orig_name, registration_rn, -1);
+			END IF;
+		END IF;
+        
+        SET record_number = record_number + 1;
+        
+        
+	END LOOP read_loop;
+    SELECT record_number;
+    
+	-- close the cursor
+    CLOSE new_cur;
+        
+END;
+$$
 
-    column_name: 
-        The column that contains facility names
+CALL matchProc();
+```
+<br/>
 
+# Statistics
 
-    Returns
-    -------
-    df: pd.DataFrame
-        The modified dataframe
-    """
-
-    df[column_name] = df[column_name].str.replace('\?|\*|"', "", regex=True)
-    df[column_name] = df[column_name].str.replace('_|-', " ", regex=True)
-    df[column_name] = df[column_name].str.rstrip()
-    df[column_name] = df[column_name].str.lstrip()
-
-    return df 
-
-
-consistent_names = pd.read_csv("Consistent Names.csv")
-consistent_data = preprocess_text(consistent_names, "CONSISTENT_ORIG_NAME_NO")
-consistent_data.to_csv("Consistent Names.csv", index=False)
+```sql
+-- Unmatched facility names
+SELECT COUNT(ArrowID) `Unmatched IDs` FROM storeResults where ArrowID = -1; -- 44268
 ```
 
-<br/><br/>
+```sql
+-- Matched facility names
+SELECT COUNT(ArrowID) `Matched IDs` FROM storeResults where ArrowID != -1; -- 195
+```
 
-# Enforcing data consistency in the Arrow Energy wells data
 
-1. The Arrow Energy wells data has to be imported into the ```DP_GWDBQLD_Master``` database. This is done using the **Table Data Import Wizard** as shown in the screen capture below.
-
-<img src="table wizard.png" />
-
-The import wizard does not work with excel files, so the Arrow energy excel file will have to be converted into CSV format. In this case, the name of the newly created CSV file is ```WELLSArrow.csv```.
+```sql
+-- Empty tuples in the old master table
+SELECT COUNT(*) Empty_Values FROM MASTER_DATA WHERE ORIG_NAME_NO = ""; -- 108102
+```
 
 <br/>
 
-2. Remove all unecessary characters using the python script below.
+# Results
+The results need to be cleaned up before delivery to the client. Use the SQL code below to clean up the ```ORIG_NAME_NO``` column for display purposes only.
 
-```python
-arrow_wells = pd.read_csv("WELLSArrow.csv")
-consistent_arrow_data = preprocess_text(arrow_wells, "Well Name")
-consistent_arrow_data.to_csv("WELLSArrow.csv", index=False)
+```sql
+-- Replace all dashes with spaces and remove all special characters
+SELECT REGEXP_REPLACE(WellName, "-|_", " ") as WellName, QueenslandID, ArrowID
+FROM ( 
+	SELECT REGEXP_REPLACE(WellName, "[#?+!&%$\.\\[\\]\*\"\'><=@:;(){}/]", "") as WellName, QueenslandID, ArrowID FROM storeResults
+) as t1
 ```
 
-<br/><br/>
+The data is now clean, and can be delivered to the client for his review.
 
-# Summary
 
-1. Create a new table called **NEW_MASTER_DATA** on mysql workbench.
-2. Export the content of this table in CSV format.
-3. Remove all unnecessary characters using python (Creates clean version of **NEW_MASTER_DATA**).
-4. Replace the existing **NEW_MASTER_DATA** table with the clean version. This involves dropping the existing **NEW_MASTER_DATA** table and uploading the clean version to the server.
-5. Remove all unnecessary characters in the Arrow energy wells data.
-6. Upload it to Mysql server using the **Table Data Import Wizard**.
