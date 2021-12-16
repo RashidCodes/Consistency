@@ -1,4 +1,4 @@
-# CSC8600 Data Governance Project
+# Data Governance Project
 
 - The project involves the creation of Master data, Meta data and ensuring high data quality for reporting purposes.
 
